@@ -21,7 +21,21 @@ enum directives {
 // Returns the value associated with a BYTE directive
 int getByteValue(int directiveType, char* string)
 {
-	
+	if (strstr(string, "X'")) {
+		char *token = strtok(string, "'");
+		token = strtok(NULL, "'");
+		return strtol(token, NULL, 16);
+	} else {
+		char *token = strtok(string, "'");
+		token = strtok(NULL, "'");
+		char *finalString;
+		for (int i = 0; i < strlen(token); i++) {
+			char temp[3];
+			sprintf(temp, "%x", token[i]);
+			strcat(finalString, temp);
+		}
+		return strtol(finalString, NULL, 16);
+	}
 }
 
 // Do no modify any part of this function
@@ -65,13 +79,13 @@ int getMemoryAmount(int directiveType, char* string)
 // Returns true if the provided directive type is the BASE directive; otherwise, false
 bool isBaseDirective(int directiveType)
 {
-	
+	return directiveType == BASE;
 }
 
 // Returns true if the provided directive type is the BYTE directive; otherwise, false
 bool isDataDirective(int directiveType)
 {
-	
+	return directiveType == BYTE;
 }
 
 // Do no modify any part of this function
@@ -91,13 +105,13 @@ int isDirective(char* string)
 // Returns true if the provided directive type is the END directive; otherwise, false
 bool isEndDirective(int directiveType)
 {
-	
+	return directiveType == END;
 }
 
 // Returns true if the provided directive type is the RESB or RESW directive; otherwise, false
 bool isReserveDirective(int directiveType)
 {
-	
+	return (directiveType == RESW || directiveType == RESB);
 }
 
 // Returns true if the provided directive type is the START directive; otherwise, false

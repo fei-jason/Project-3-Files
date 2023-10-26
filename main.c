@@ -83,7 +83,81 @@ int main(int argc, char* argv[])
 // Determines the Format 3/4 flags and computes address displacement for Format 3 instruction
 int computeFlagsAndAddress(symbol* symbolArray[], address* addresses, segment* segments, int format)
 {
-	
+	char *operand;
+	int bitFlag = 0;
+	strcpy(operand, segments->operand);
+
+	switch(operand[0]) {
+		case IMMEDIATE_CHARACTER:
+			bitFlag += FLAG_I;
+			operand = &operand[1];
+			break;
+		case INDIRECT_CHARACTER:
+			bitFlag += FLAG_N;
+			operand = &operand[1];
+			break;
+		default:
+			bitFlag = FLAG_N + FLAG_I;
+			if (strstr(operand, INDEX_STRING) != NULL) {
+				bitFlag += FLAG_X;
+				strcpy(operand, strtok(operand, ","));
+			}
+			break;
+	}
+
+	//test format variable
+	if (format == FORMAT_4) {
+		bitFlag += FLAG_E;
+	}
+
+	if (strcmp(segments->operation, "RSUB") == 0) {
+		bitFlag *= FORMAT_3_MULTIPLIER;
+		return bitFlag;
+	}
+
+	if (isNumeric(operand)) {
+		int intOperand = strtol(operand, NULL, 10);
+		if (format == FORMAT_3) {
+			bitFlag *= FORMAT_3_MULTIPLIER;
+		} else if (format == FORMAT_4) {
+			bitFlag *= FORMAT_4_MULTIPLIER;
+		}
+		bitFlag += intOperand;
+		return bitFlag;
+	} else {
+		int address = getSymbolAddress(symbolArray, operand);
+		if (format == FORMAT_4) {
+			bitFlag *= FORMAT_4_MULTIPLIER;
+			bitFlag += address;
+			return bitFlag;
+		}
+	}
+
+	//Compute the displacement for relative addressing 
+	int sum = addresses->current + addresses->increment;
+	int displacement = getSymbolAddress(symbolArray, operand) - sum;
+	if (displacement >= PC_MIN_RANGE && displacement < PC_MAX_RANGE) {
+		bitFlag += FLAG_P;
+	} else if (addresses->base != 0) {
+		int baseDisplacement = displacement - addresses->base;
+		if (baseDisplacement >= 0 && baseDisplacement < BASE_MAX_RANGE) {
+			bitFlag += FLAG_B;
+		} else {
+			displayError(ADDRESS_OUT_OF_RANGE, segments->operation);
+			exit(1);
+		}
+	} else {
+		displayError(ADDRESS_OUT_OF_RANGE, segments->operation);
+		exit(1);
+	}
+
+	if (displacement < 0) {
+		bitFlag++;
+	}
+
+	bitFlag *= FORMAT_3_MULTIPLIER;
+	bitFlag += displacement;
+	return bitFlag;
 }
 
 // Do no modify any part of this function
@@ -111,7 +185,13 @@ void flushTextRecord(FILE* file, objectFileData* data, address* addresses)
 // Returns a hex byte containing the registers listed in the provided operand
 int getRegisters(char* operand)
 {
-	
+	int iRegister = getRegisterValue(operand[0]) * REGISTER_MULTIPLIER;
+	int len = strlen(operand);
+	if (len > 1) {
+		//iRegister += getRegisterValue(operand[len-1]);
+		iRegister += getRegisterValue(operand[len-1]);
+	}
+	return iRegister;
 }
 
 // Do no modify any part of this function
@@ -252,9 +332,66 @@ void performPass2(struct symbol* symbolTable[], char* filename, address* address
 	while (fgets(inData, INPUT_BUF_SIZE, fileIn))
 	{ 
 	// Do not modify any of the code provided above
-	
 	// Place your code for the performPass2 function here
+		if (inData[0] != '#') {
+			objectData.recordType = 'T';
+			segment *newSeg = prepareSegments(inData);
+			
+			//Test whether the operation segment (directive or opcode) is a directive 
+			int dirType = isDirective(newSeg->operation);
+			if(isStartDirective(dirType)) {
+				objectData.recordType = 'H';
+				strcpy(objectData.programName, newSeg->label);
+				objectData.startAddress = addresses->start;
+				objectData.recordAddress = addresses->start;
+				objectData.programSize = addresses->current - addresses->start;
+				addresses->current = addresses->start;
+				writeToObjFile(fileObj, objectData);
+				writeToLstFile(fileLst, addresses->current, newSeg, BLANK_INSTRUCTION);
+				continue;
+			}
 
+			if(isBaseDirective(dirType)) {
+				addresses->base = getSymbolAddress(symbolTable, newSeg->operand);
+				writeToLstFile(fileLst, addresses->current, newSeg, BLANK_INSTRUCTION);
+				continue;
+			}
+
+			if(isEndDirective(dirType)) {
+				if (objectData.recordByteCount > 0)	{
+					flushTextRecord(fileIn, &objectData, addresses);
+				}
+				objectData.recordType = 'E';
+				writeToObjFile(fileObj, objectData);
+				writeToLstFile(fileLst, addresses->current, newSeg, BLANK_INSTRUCTION);
+			}
+			
+			if(isReserveDirective(dirType)) {
+				if (objectData.recordByteCount > 0) {
+					flushTextRecord(fileIn, &objectData, addresses);
+				}
+				writeToLstFile(fileIn, addresses->current, newSeg, BLANK_INSTRUCTION);
+				addresses->increment = getMemoryAmount(dirType, newSeg->operand);
+				objectData.recordAddress += addresses->increment;
+			}
+
+			if(isDataDirective(dirType)) {
+				addresses->increment = getMemoryAmount(dirType, newSeg->operand);
+				if (objectData.recordByteCount > (MAX_RECORD_BYTE_COUNT - addresses->increment)) {
+					flushTextRecord(fileIn, &objectData, addresses);
+				}
+				int byteVal = getByteValue(dirType, newSeg->operand);
+				//objectData.recordEntries->numBytes = addresses->increment;
+				objectData.recordEntries[objectData.recordEntryCount].numBytes = addresses->increment;
+				// objectData.recordEntries->value = byteVal;
+				objectData.recordEntries[objectData.recordEntryCount].value = byteVal;
+				objectData.recordEntryCount++;
+				objectData.recordByteCount += addresses->increment;
+				writeToLstFile(fileIn, addresses->current, newSeg, byteVal);
+			}
+
+
+		}
 
 	// Do not modify any of the code provided below
 	}
