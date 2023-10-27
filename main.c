@@ -83,94 +83,93 @@ int main(int argc, char* argv[])
 // Determines the Format 3/4 flags and computes address displacement for Format 3 instruction
 int computeFlagsAndAddress(symbol* symbolArray[], address* addresses, segment* segments, int format)
 {
-	 char buffer[strlen(segments->operand) + 1];
-		    strcpy(buffer, segments->operand);
-
-		    int bitFlag = 0;
-
-
-		    if (buffer[0] == IMMEDIATE_CHARACTER) {
-		        bitFlag += FLAG_I;
-		        memmove(buffer, buffer+1, strlen(buffer));
-		    }
-
-		    else if (buffer[0] == INDIRECT_CHARACTER) {
-		        bitFlag += FLAG_N;
-		        memmove(buffer, buffer+1, strlen(buffer));
-		    }
-		    else {
-		        bitFlag += FLAG_N + FLAG_I;
-		    }
-
-
-		    if (strstr(buffer, INDEX_STRING)) {
-		        bitFlag += FLAG_X;
-		        char *pos = strstr(buffer, INDEX_STRING);
-		        *pos = '\0';
-		    }
-
-		    if (format == FORMAT_4) {
-		        bitFlag += FLAG_E;
-		    }
-
-		    if (strcmp(segments->operation, "RSUB") == 0) {
-		        bitFlag *= FORMAT_3_MULTIPLIER;
-		        return bitFlag;
-		    }
-
-		    int addressValue = 0;
-		    if (isNumeric(buffer)) {
-		        addressValue = strtol(buffer, NULL, 10);
-
-		        if (format == FORMAT_3) {
-		            bitFlag *= FORMAT_3_MULTIPLIER;
-		        } else {
-		            bitFlag *= FORMAT_4_MULTIPLIER;
-		        }
-
-		        bitFlag += addressValue;
-		        return bitFlag;
-		    } else {
-		        addressValue = getSymbolAddress(symbolArray, buffer);
-		        printf("\n%dYES\n", addressValue);
-		        if (format == FORMAT_4) {
-		            bitFlag *= FORMAT_4_MULTIPLIER;
-		            bitFlag += addressValue;
-		            return bitFlag;
-		        }
-		    }
-
-
-		    int sum = addresses->current + addresses->increment;
-		    printf("\n%dYESs", addresses->current);
-		 		    printf("\n%dYESs", addresses->increment);
-		    printf("\n%dYESs\n", sum);
-		    int displacement = addressValue - sum;
-		    if (displacement >= PC_MIN_RANGE && displacement <= PC_MAX_RANGE) {
-		        bitFlag += FLAG_P;
-		    }
-		    else if (addresses->base != 0) {
-		        displacement = addressValue - addresses->base;
-		        if (displacement >= 0 && displacement < BASE_MAX_RANGE) {
-		            bitFlag += FLAG_B;
-		        } else {
-		            displayError(ADDRESS_OUT_OF_RANGE, segments->operation);
-		            exit(0);
-		        }
-		    } else {
-		        displayError(ADDRESS_OUT_OF_RANGE, segments->operation);
-		        exit(0);
-		    }
-
-		    if (displacement < 0) {
-		    	displacement = (1 << 12) + displacement;
-		    }
-		    printf("\n%dYESs\n", bitFlag);
-		    bitFlag *= FORMAT_3_MULTIPLIER;
-		    bitFlag += displacement;
-		    printf("\n%dYESssss\n", bitFlag);
-		    return bitFlag;
+	 //printf("In here 1st\n");
+	char *operand;
+	operand = malloc(strlen(segments->operand) + 1);
+	int bitFlag = 0;
+	strcpy(operand, segments->operand);
+	switch(operand[0]) {
+		case IMMEDIATE_CHARACTER:
+			// printf("I before operand: %s\n", operand);
+			bitFlag += FLAG_I;
+			operand = &operand[1];
+			// printf("I after operand: %s\n", operand);
+			break;
+		case INDIRECT_CHARACTER:
+			// printf("Ind before operand: %s\n", operand);
+			bitFlag += FLAG_N;
+			operand = &operand[1];
+			// printf("Ind after operand: %s\n", operand);
+			break;
+		default:
+			bitFlag += FLAG_N + FLAG_I;
+			if (strstr(operand, INDEX_STRING)) {
+				bitFlag += FLAG_X;
+				strcpy(operand, strtok(operand, ","));
+				printf("--default operand: %s\n", operand);
+			}
+		break;
 	}
+
+	//test format variable
+	if (format == FORMAT_4) {
+		bitFlag += FLAG_E;
+	}
+
+	if (strcmp(segments->operation, "RSUB") == 0) {
+		bitFlag *= FORMAT_3_MULTIPLIER;
+		return bitFlag;
+	}
+	
+	if (isNumeric(operand)) {
+		int address = strtol(operand, NULL, 10);
+		if (format == FORMAT_3) {
+			bitFlag *= FORMAT_3_MULTIPLIER;
+		} else if (format == FORMAT_4) {
+			bitFlag *= FORMAT_4_MULTIPLIER;
+		}
+		bitFlag += address;
+		return bitFlag;
+	} else {
+		int address = getSymbolAddress(symbolArray, operand);
+		printf("is numeric operand else address: %d\n", address);
+		if (format == FORMAT_4) {
+			bitFlag *= FORMAT_4_MULTIPLIER;
+			bitFlag += address;
+			return bitFlag;
+		}
+	}
+
+	//Compute the displacement for relative addressing 
+	int sum = addresses->current + addresses->increment;
+	// printf("---sum%d\n", sum);
+	int address = getSymbolAddress(symbolArray, operand);
+	int displacement = address - sum;
+	// printf("displacement_------------%d\n", displacement);
+
+	if (displacement >= PC_MIN_RANGE && displacement <= PC_MAX_RANGE) {
+		bitFlag += FLAG_P;
+	} else if (addresses->base != 0) {
+		displacement = address - addresses->base;
+		if (displacement >= 0 && displacement <= BASE_MAX_RANGE) {
+			bitFlag += FLAG_B;
+		} else {
+			displayError(ADDRESS_OUT_OF_RANGE, segments->operation);
+			exit(1);
+		}		
+	} else {
+		displayError(ADDRESS_OUT_OF_RANGE, segments->operation);
+		exit(1);
+	}
+
+	if (displacement < 0) {
+		bitFlag++;
+	}
+
+	bitFlag *= FORMAT_3_MULTIPLIER;
+	bitFlag += displacement;
+	return bitFlag;
+}
 
 // Do no modify any part of this function
 // Returns a new filename using the provided filename and extension
