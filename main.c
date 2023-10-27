@@ -83,94 +83,94 @@ int main(int argc, char* argv[])
 // Determines the Format 3/4 flags and computes address displacement for Format 3 instruction
 int computeFlagsAndAddress(symbol* symbolArray[], address* addresses, segment* segments, int format)
 {
-	//printf("In here 1st\n");
-	char *operand;
-	operand = malloc(strlen(segments->operand) + 1);
-	int bitFlag = 0;
-	strcpy(operand, segments->operand);
-	printf("--og operand: %s\n", operand);
-	switch(operand[0]) {
-		case IMMEDIATE_CHARACTER:
-			// printf("I before operand: %s\n", operand);
-			bitFlag += FLAG_I;
-			operand = &operand[1];
-			// printf("I after operand: %s\n", operand);
-			break;
-		case INDIRECT_CHARACTER:
-			// printf("Ind before operand: %s\n", operand);
-			bitFlag += FLAG_N;
-			operand = &operand[1];
-			// printf("Ind after operand: %s\n", operand);
-			break;
-		default:
-			bitFlag += FLAG_N + FLAG_I;
-			if (strstr(operand, INDEX_STRING)) {
-				bitFlag += FLAG_X;
-				strcpy(operand, strtok(operand, ","));
-				printf("--default operand: %s\n", operand);
-			}
-			break;
-	}
+	 char buffer[strlen(segments->operand) + 1];
+		    strcpy(buffer, segments->operand);
 
-	//test format variable
-	if (format == FORMAT_4) {
-		bitFlag += FLAG_E;
-	}
+		    int bitFlag = 0;
 
-	if (strcmp(segments->operation, "RSUB") == 0) {
-		bitFlag *= FORMAT_3_MULTIPLIER;
-		return bitFlag;
-	}
-	
-	if (isNumeric(operand)) {
-		int address = strtol(operand, NULL, 10);
-		if (format == FORMAT_3) {
-			bitFlag *= FORMAT_3_MULTIPLIER;
-		} else if (format == FORMAT_4) {
-			bitFlag *= FORMAT_4_MULTIPLIER;
-		}
-		bitFlag += address;
-		return bitFlag;
-	} else {
-		int address = getSymbolAddress(symbolArray, operand);
-		printf("is numeric operand else address: %d\n", address);
-		if (format == FORMAT_4) {
-			bitFlag *= FORMAT_4_MULTIPLIER;
-			bitFlag += address;
-			return bitFlag;
-		}
-	}
 
-	//Compute the displacement for relative addressing 
-	int sum = addresses->current + addresses->increment;
-	// printf("---sum%d\n", sum);
-	int address = getSymbolAddress(symbolArray, operand);
-	int displacement = address - sum;
-	// printf("displacement_------------%d\n", displacement);
+		    if (buffer[0] == IMMEDIATE_CHARACTER) {
+		        bitFlag += FLAG_I;
+		        memmove(buffer, buffer+1, strlen(buffer));
+		    }
 
-	if (displacement >= PC_MIN_RANGE && displacement <= PC_MAX_RANGE) {
-		bitFlag += FLAG_P;
-	} else if (addresses->base != 0) {
-		int displacement = address - addresses->base;
-		if (displacement >= 0 && displacement <= BASE_MAX_RANGE) {
-			bitFlag += FLAG_B;
-		} else {
-			displayError(ADDRESS_OUT_OF_RANGE, segments->operation);
-			exit(1);
-		}
-	} else {
-		displayError(ADDRESS_OUT_OF_RANGE, segments->operation);
-		exit(1);
+		    else if (buffer[0] == INDIRECT_CHARACTER) {
+		        bitFlag += FLAG_N;
+		        memmove(buffer, buffer+1, strlen(buffer));
+		    }
+		    else {
+		        bitFlag += FLAG_N + FLAG_I;
+		    }
+
+
+		    if (strstr(buffer, INDEX_STRING)) {
+		        bitFlag += FLAG_X;
+		        char *pos = strstr(buffer, INDEX_STRING);
+		        *pos = '\0';
+		    }
+
+		    if (format == FORMAT_4) {
+		        bitFlag += FLAG_E;
+		    }
+
+		    if (strcmp(segments->operation, "RSUB") == 0) {
+		        bitFlag *= FORMAT_3_MULTIPLIER;
+		        return bitFlag;
+		    }
+
+		    int addressValue = 0;
+		    if (isNumeric(buffer)) {
+		        addressValue = strtol(buffer, NULL, 10);
+
+		        if (format == FORMAT_3) {
+		            bitFlag *= FORMAT_3_MULTIPLIER;
+		        } else {
+		            bitFlag *= FORMAT_4_MULTIPLIER;
+		        }
+
+		        bitFlag += addressValue;
+		        return bitFlag;
+		    } else {
+		        addressValue = getSymbolAddress(symbolArray, buffer);
+		        printf("\n%dYES\n", addressValue);
+		        if (format == FORMAT_4) {
+		            bitFlag *= FORMAT_4_MULTIPLIER;
+		            bitFlag += addressValue;
+		            return bitFlag;
+		        }
+		    }
+
+
+		    int sum = addresses->current + addresses->increment;
+		    printf("\n%dYESs", addresses->current);
+		 		    printf("\n%dYESs", addresses->increment);
+		    printf("\n%dYESs\n", sum);
+		    int displacement = addressValue - sum;
+		    if (displacement >= PC_MIN_RANGE && displacement <= PC_MAX_RANGE) {
+		        bitFlag += FLAG_P;
+		    }
+		    else if (addresses->base != 0) {
+		        displacement = addressValue - addresses->base;
+		        if (displacement >= 0 && displacement < BASE_MAX_RANGE) {
+		            bitFlag += FLAG_B;
+		        } else {
+		            displayError(ADDRESS_OUT_OF_RANGE, segments->operation);
+		            exit(0);
+		        }
+		    } else {
+		        displayError(ADDRESS_OUT_OF_RANGE, segments->operation);
+		        exit(0);
+		    }
+
+		    if (displacement < 0) {
+		    	displacement = (1 << 12) + displacement;
+		    }
+		    printf("\n%dYESs\n", bitFlag);
+		    bitFlag *= FORMAT_3_MULTIPLIER;
+		    bitFlag += displacement;
+		    printf("\n%dYESssss\n", bitFlag);
+		    return bitFlag;
 	}
-
-	if (displacement < 0) {
-		bitFlag++;
-	}
-
-	bitFlag *= FORMAT_3_MULTIPLIER;
-	bitFlag += displacement;
-	return bitFlag;
-}
 
 // Do no modify any part of this function
 // Returns a new filename using the provided filename and extension
@@ -197,16 +197,16 @@ void flushTextRecord(FILE* file, objectFileData* data, address* addresses)
 // Returns a hex byte containing the registers listed in the provided operand
 int getRegisters(char* operand)
 {
-	int regValue = 0;
-	regValue = getRegisterValue(operand[0]) * REGISTER_MULTIPLIER;
+    int regValue = 0;
+    regValue = getRegisterValue(operand[0]) * REGISTER_MULTIPLIER;
 
-	int len = 0;
-	len = strlen(operand);
-	if (len > 1) {
-		regValue += getRegisterValue(operand[len-1]);
-	}
+    int len = 0;
+    len = strlen(operand);
+    if (len > 1) {
+        regValue += getRegisterValue(operand[len-1]);
+    }
 
-	return regValue;
+    return regValue;
 }
 
 // Do no modify any part of this function
@@ -345,139 +345,138 @@ void performPass2(struct symbol* symbolTable[], char* filename, address* address
 	fileObj = fopen(objFilename, "w");
 	
 	while (fgets(inData, INPUT_BUF_SIZE, fileIn))
-	{ 
-	// Do not modify any of the code provided above
-	// Place your code for the performPass2 function here
-		if (inData[0] != COMMENT) {
-			objectData.recordType = 'T';
-			segment *newSeg = prepareSegments(inData);
-			
-			//Test whether the operation segment (directive or opcode) is a directive 
-			int dirType = isDirective(newSeg->operation);
+		{
+		// Do not modify any of the code provided above
+		// Place your code for the performPass2 function here
+			if (inData[0] != COMMENT) {
+				objectData.recordType = 'T';
+				segment *newSeg = prepareSegments(inData);
 
-			if(isStartDirective(dirType)) {
-				objectData.recordType = 'H';
-				strcpy(objectData.programName, newSeg->label);
-				objectData.startAddress = addresses->start;
-				objectData.recordAddress = addresses->start;
-				objectData.programSize = addresses->current - addresses->start;
-				addresses->current = addresses->start;
-				writeToObjFile(fileObj, objectData);
-				writeToLstFile(fileLst, addresses->current, newSeg, BLANK_INSTRUCTION);
-				continue;
+				//Test whether the operation segment (directive or opcode) is a directive
+				int dirType = isDirective(newSeg->operation);
+
+				if(isStartDirective(dirType)) {
+					objectData.recordType = 'H';
+					strcpy(objectData.programName, newSeg->label);
+					objectData.startAddress = addresses->start;
+					objectData.recordAddress = addresses->start;
+					objectData.programSize = addresses->current - addresses->start;
+					addresses->current = addresses->start;
+					writeToObjFile(fileObj, objectData);
+					writeToLstFile(fileLst, addresses->current, newSeg, BLANK_INSTRUCTION);
+					continue;
+				}
+
+				if(isBaseDirective(dirType)) {
+					addresses->base = getSymbolAddress(symbolTable, newSeg->operand);
+					writeToLstFile(fileLst, addresses->current, newSeg, BLANK_INSTRUCTION);
+					continue;
+				}
+
+				if(isEndDirective(dirType)) {
+					if (objectData.recordByteCount > 0)	{
+						flushTextRecord(fileObj, &objectData, addresses);
+					}
+					objectData.recordType = 'E';
+					writeToObjFile(fileObj, objectData);
+					writeToLstFile(fileLst, addresses->current, newSeg, BLANK_INSTRUCTION);
+				}
+
+				if(isReserveDirective(dirType)) {
+					printf("in reserveDirective\n");
+					if (objectData.recordByteCount > 0) {
+						flushTextRecord(fileObj, &objectData, addresses);
+					}
+					writeToLstFile(fileLst, addresses->current, newSeg, BLANK_INSTRUCTION);
+					addresses->increment = getMemoryAmount(dirType, newSeg->operand);
+					objectData.recordAddress += addresses->increment;
+				}
+
+				if(isDataDirective(dirType)) {
+					printf("initial operand----%s\n", newSeg->operand);
+
+					char* temp = strdup(newSeg->operand);
+					strcpy(temp, newSeg->operand);
+
+					addresses->increment = getMemoryAmount(dirType, newSeg->operand);
+					printf("addressinc: %d %s\n",  addresses->increment, newSeg->operand);
+					if (objectData.recordByteCount > (MAX_RECORD_BYTE_COUNT - addresses->increment)) {
+						flushTextRecord(fileObj, &objectData, addresses);
+					}
+
+					int byteVal = getByteValue(dirType, newSeg->operand);
+					printf("byteval %d\n", byteVal);
+					//printf("%d", byteVal);
+					//objectData.recordEntries->numBytes = addresses->increment;
+					objectData.recordEntries[objectData.recordEntryCount].numBytes = addresses->increment;
+					// objectData.recordEntries->value = byteVal;
+					objectData.recordEntries[objectData.recordEntryCount].value = byteVal;
+					objectData.recordEntryCount++;
+					objectData.recordByteCount += addresses->increment;
+
+					printf("operation----: %s\n", newSeg->operation);
+					printf("Operand------> %s\n", newSeg->operand);
+					printf("strlen %d", strlen(newSeg->operand));
+
+					strcpy(newSeg->operand, temp);
+					writeToLstFile(fileLst, addresses->current, newSeg, byteVal);
+				}
+
+				if(isOpcode(newSeg->operation)) {
+					int opCodeVal = getOpcodeValue(newSeg->operation);
+					addresses->increment = getOpcodeFormat(newSeg->operation);
+					printf("address->increment: %d\n", addresses->increment);
+					if (addresses->increment == -1) {
+						displayError(ILLEGAL_OPCODE_FORMAT, newSeg->operation);
+						exit(1);
+					}
+
+					switch(addresses->increment) {
+						case 1:
+							break;
+						case 2:
+							opCodeVal *= OPCODE_MULTIPLIER;
+							break;
+						case 3:
+							opCodeVal *= OPCODE_MULTIPLIER * OPCODE_MULTIPLIER;
+							break;
+						case 4:
+							opCodeVal *= OPCODE_MULTIPLIER * OPCODE_MULTIPLIER * OPCODE_MULTIPLIER;
+							break;
+						default:
+							break;
+					}
+
+					if (addresses->increment == 2) {
+						opCodeVal += getRegisters(newSeg->operand);
+					} else if (addresses->increment == 3 || addresses->increment == 4) {
+						opCodeVal += computeFlagsAndAddress(symbolTable, addresses, newSeg, addresses->increment);
+					}
+
+					int difference = MAX_RECORD_BYTE_COUNT - addresses->increment;
+
+					if (objectData.recordByteCount > difference) {
+						flushTextRecord(fileObj, &objectData, addresses);
+					}
+
+					objectData.recordEntries[objectData.recordEntryCount].numBytes = addresses->increment;
+					objectData.recordEntries[objectData.recordEntryCount].value = opCodeVal;
+					objectData.recordEntryCount++;
+					objectData.recordByteCount += addresses->increment;
+					writeToLstFile(fileLst, addresses->current, newSeg, opCodeVal);
+				}
+
+				printf("address current-----%d || address next------%d\n", addresses->current, addresses->increment);
+				addresses->current += addresses->increment;
+				memset(inData, '\0', INPUT_BUF_SIZE);
 			}
 
-			if(isBaseDirective(dirType)) {
-				addresses->base = getSymbolAddress(symbolTable, newSeg->operand);
-				writeToLstFile(fileLst, addresses->current, newSeg, BLANK_INSTRUCTION);
-				continue;
-			}
-
-			if(isEndDirective(dirType)) {
-				if (objectData.recordByteCount > 0)	{
-					flushTextRecord(fileObj, &objectData, addresses);
-				}
-				objectData.recordType = 'E';
-				writeToObjFile(fileObj, objectData);
-				writeToLstFile(fileLst, addresses->current, newSeg, BLANK_INSTRUCTION);
-			}
-			
-			if(isReserveDirective(dirType)) {
-				// printf("in reserveDirective\n");
-				if (objectData.recordByteCount > 0) {
-					flushTextRecord(fileObj, &objectData, addresses);
-				}
-				writeToLstFile(fileLst, addresses->current, newSeg, BLANK_INSTRUCTION);
-				addresses->increment = getMemoryAmount(dirType, newSeg->operand);
-				objectData.recordAddress += addresses->increment;
-			}
-
-			if(isDataDirective(dirType)) {
-				// printf("initial operand----%s\n", newSeg->operand);
-
-				char* temp = strdup(newSeg->operand);
-				strcpy(temp, newSeg->operand);
-
-				addresses->increment = getMemoryAmount(dirType, newSeg->operand);
-				// printf("addressinc: %d %s\n",  addresses->increment, newSeg->operand);
-				if (objectData.recordByteCount > (MAX_RECORD_BYTE_COUNT - addresses->increment)) {
-					flushTextRecord(fileObj, &objectData, addresses);
-				}
-
-				int byteVal = getByteValue(dirType, newSeg->operand);
-				// printf("byteval %d\n", byteVal);
-				//printf("%d", byteVal);
-				//objectData.recordEntries->numBytes = addresses->increment;
-				objectData.recordEntries[objectData.recordEntryCount].numBytes = addresses->increment;
-				// objectData.recordEntries->value = byteVal;
-				objectData.recordEntries[objectData.recordEntryCount].value = byteVal;
-				objectData.recordEntryCount++;
-				objectData.recordByteCount += addresses->increment;
-
-				printf("operation----: %s\n", newSeg->operation);
-				printf("Operand------> %s\n", newSeg->operand);
-				printf("strlen %d", strlen(newSeg->operand));
-
-				strcpy(newSeg->operand, temp);
-				writeToLstFile(fileLst, addresses->current, newSeg, byteVal);
-			}
-
-			if(isOpcode(newSeg->operation)) {
-				int opCodeVal = getOpcodeValue(newSeg->operation);
-				addresses->increment = getOpcodeFormat(newSeg->operation);
-				printf("------------%s-----------%d\n", newSeg->operation, addresses->increment);
-				printf("address->increment: %d\n", addresses->increment);
-				if (addresses->increment == -1) {
-					displayError(ILLEGAL_OPCODE_FORMAT, newSeg->operation);
-					exit(1);
-				}
-
-				switch(addresses->increment) {
-					case 1:
-						break;
-					case 2:
-						opCodeVal *= OPCODE_MULTIPLIER;
-						break;
-					case 3:
-						opCodeVal *= OPCODE_MULTIPLIER * OPCODE_MULTIPLIER;
-						break;
-					case 4:
-						opCodeVal *= OPCODE_MULTIPLIER * OPCODE_MULTIPLIER * OPCODE_MULTIPLIER;
-						break;
-					default:
-						break;
-				}
-
-				if (addresses->increment == 2) {
-					opCodeVal += getRegisters(newSeg->operand);
-				} else if (addresses->increment == 3 || addresses->increment == 4) {
-					opCodeVal += computeFlagsAndAddress(symbolTable, addresses, newSeg, addresses->increment);
-				}
-
-				int difference = MAX_RECORD_BYTE_COUNT - addresses->increment;
-
-				if (objectData.recordByteCount > difference) {
-					flushTextRecord(fileObj, &objectData, addresses);
-				}
-
-				objectData.recordEntries[objectData.recordEntryCount].numBytes = addresses->increment;
-				objectData.recordEntries[objectData.recordEntryCount].value = opCodeVal;
-				objectData.recordEntryCount++;
-				objectData.recordByteCount += addresses->increment;
-				writeToLstFile(fileLst, addresses->current, newSeg, opCodeVal);
-			}
-
-			printf("address current-----%d || address next------%d\n", addresses->current, addresses->increment);
-			addresses->current += addresses->increment;
-			memset(inData, '\0', INPUT_BUF_SIZE);
+		// Do not modify any of the code provided below
 		}
-
-	// Do not modify any of the code provided below
+		fclose(fileIn);
+		fclose(fileLst);
+		fclose(fileObj);
 	}
-	fclose(fileIn);
-	fclose(fileLst);
-	fclose(fileObj);
-}
 
 // Do no modify any part of this function
 // Separates a SIC/XE instruction into individual sections
