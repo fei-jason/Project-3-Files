@@ -106,7 +106,7 @@ int computeFlagsAndAddress(symbol* symbolArray[], address* addresses, segment* s
 			if (strstr(operand, INDEX_STRING)) {
 				bitFlag += FLAG_X;
 				strcpy(operand, strtok(operand, ","));
-				printf("--default operand: %s\n", operand);
+				// printf("--default operand: %s\n", operand);
 			}
 		break;
 	}
@@ -132,7 +132,7 @@ int computeFlagsAndAddress(symbol* symbolArray[], address* addresses, segment* s
 		return bitFlag;
 	} else {
 		int address = getSymbolAddress(symbolArray, operand);
-		printf("is numeric operand else address: %d\n", address);
+		// printf("is numeric operand else address: %d\n", address);
 		if (format == FORMAT_4) {
 			bitFlag *= FORMAT_4_MULTIPLIER;
 			bitFlag += address;
@@ -382,7 +382,7 @@ void performPass2(struct symbol* symbolTable[], char* filename, address* address
 				}
 
 				if(isReserveDirective(dirType)) {
-					printf("in reserveDirective\n");
+					// printf("in reserveDirective\n");
 					if (objectData.recordByteCount > 0) {
 						flushTextRecord(fileObj, &objectData, addresses);
 					}
@@ -392,19 +392,19 @@ void performPass2(struct symbol* symbolTable[], char* filename, address* address
 				}
 
 				if(isDataDirective(dirType)) {
-					printf("initial operand----%s\n", newSeg->operand);
+					// printf("initial operand----%s\n", newSeg->operand);
 
 					char* temp = strdup(newSeg->operand);
 					strcpy(temp, newSeg->operand);
 
 					addresses->increment = getMemoryAmount(dirType, newSeg->operand);
-					printf("addressinc: %d %s\n",  addresses->increment, newSeg->operand);
+					// printf("addressinc: %d %s\n",  addresses->increment, newSeg->operand);
 					if (objectData.recordByteCount > (MAX_RECORD_BYTE_COUNT - addresses->increment)) {
 						flushTextRecord(fileObj, &objectData, addresses);
 					}
 
 					int byteVal = getByteValue(dirType, newSeg->operand);
-					printf("byteval %d\n", byteVal);
+					// printf("byteval %d\n", byteVal);
 					//printf("%d", byteVal);
 					//objectData.recordEntries->numBytes = addresses->increment;
 					objectData.recordEntries[objectData.recordEntryCount].numBytes = addresses->increment;
@@ -413,9 +413,9 @@ void performPass2(struct symbol* symbolTable[], char* filename, address* address
 					objectData.recordEntryCount++;
 					objectData.recordByteCount += addresses->increment;
 
-					printf("operation----: %s\n", newSeg->operation);
-					printf("Operand------> %s\n", newSeg->operand);
-					printf("strlen %d", strlen(newSeg->operand));
+					// printf("operation----: %s\n", newSeg->operation);
+					// printf("Operand------> %s\n", newSeg->operand);
+					// printf("strlen %d", strlen(newSeg->operand));
 
 					strcpy(newSeg->operand, temp);
 					writeToLstFile(fileLst, addresses->current, newSeg, byteVal);
@@ -424,7 +424,7 @@ void performPass2(struct symbol* symbolTable[], char* filename, address* address
 				if(isOpcode(newSeg->operation)) {
 					int opCodeVal = getOpcodeValue(newSeg->operation);
 					addresses->increment = getOpcodeFormat(newSeg->operation);
-					printf("address->increment: %d\n", addresses->increment);
+					// printf("address->increment: %d\n", addresses->increment);
 					if (addresses->increment == -1) {
 						displayError(ILLEGAL_OPCODE_FORMAT, newSeg->operation);
 						exit(1);
@@ -465,7 +465,7 @@ void performPass2(struct symbol* symbolTable[], char* filename, address* address
 					writeToLstFile(fileLst, addresses->current, newSeg, opCodeVal);
 				}
 
-				printf("address current-----%d || address next------%d\n", addresses->current, addresses->increment);
+				// printf("address current-----%d || address next------%d\n", addresses->current, addresses->increment);
 				addresses->current += addresses->increment;
 				memset(inData, '\0', INPUT_BUF_SIZE);
 			}
