@@ -21,20 +21,31 @@ enum directives {
 // Returns the value associated with a BYTE directive
 int getByteValue(int directiveType, char* string)
 {
-	if (strstr(string, "X'")) {
+	// printf("in getbytevalue\n");
+	char finalString[24] = {'\0'};
+	int value = 0;
+	if (strstr(string, "X")) {
+		// printf("in first if\n");
 		char *token = strtok(string, "'");
 		token = strtok(NULL, "'");
-		return strtol(token, NULL, 16);
+		// printf("------>token: %s\n", token);
+		value = strtol(token, NULL, 16);
+		// printf("------->value: %d\n", value);
+		return value;
 	} else {
+		// printf("in else statemnt\n");
 		char *token = strtok(string, "'");
 		token = strtok(NULL, "'");
-		char *finalString;
+
 		for (int i = 0; i < strlen(token); i++) {
 			char temp[3];
-			sprintf(temp, "%x", token[i]);
+			sprintf(temp, "%02X", token[i]);
 			strcat(finalString, temp);
 		}
-		return strtol(finalString, NULL, 16);
+		//printf("Str Hex: %s\n", finalString);
+        value = strtol(finalString, NULL, 16);
+		//printf("-----value: %d\n", hex_value);
+		return value;
 	}
 }
 
@@ -111,7 +122,7 @@ bool isEndDirective(int directiveType)
 // Returns true if the provided directive type is the RESB or RESW directive; otherwise, false
 bool isReserveDirective(int directiveType)
 {
-	return (directiveType == RESW || directiveType == RESB);
+	return (directiveType == RESB || directiveType == RESW);
 }
 
 // Returns true if the provided directive type is the START directive; otherwise, false
